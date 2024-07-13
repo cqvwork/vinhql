@@ -44,18 +44,31 @@ def doc_danh_sach_lop_hoc(ten_file="lop_hoc.txt"):
         print(f"Lỗi khi đọc dữ liệu lớp học: {e}")
     return danh_sach_lop
 
-def luu_danh_sach_hoc_sinh(danh_sach_hs, ten_file="hoc_sinh.txt"):
-    """Lưu danh sách học sinh vào file."""
+def doc_danh_sach_hoc_sinh(ten_file="hoc_sinh.txt"):
+    """Đọc dữ liệu học sinh từ file."""
+    danh_sach_hs = {}
     duong_dan_file = lay_duong_dan_file(ten_file)
     try:
-        with open(duong_dan_file, "w", encoding='utf-8') as f:
-            for ma_hs, hoc_sinh in danh_sach_hs.items():
-                f.write(f"{hoc_sinh.ma_hs}|{hoc_sinh.ten_hs}|{hoc_sinh.ma_lop}|{hoc_sinh.so_buoi_hoc}|{hoc_sinh.sdt}\n")
-        print(f"Đã lưu danh sách học sinh vào file '{ten_file}'.")
+        with open(duong_dan_file, "r", encoding='utf-8') as f:
+            for line in f:
+                parts = line.strip().split("|")
+                if len(parts) == 5:
+                    ma_hs, ten_hs, ma_lop, so_buoi_hoc, sdt = parts
+                    hoc_sinh = HocSinh(ma_hs, ten_hs, ma_lop, int(so_buoi_hoc), sdt)
+                elif len(parts) == 4:
+                    ma_hs, ten_hs, ma_lop, sdt = parts
+                    hoc_sinh = HocSinh(ma_hs, ten_hs, ma_lop, sdt=sdt)
+                else:
+                    print(f"Dòng không hợp lệ: {line}")
+                    continue
+                danh_sach_hs[ma_hs] = hoc_sinh
+    except FileNotFoundError:
+        print(f"File '{ten_file}' không tồn tại. Tạo danh sách học sinh mới.")
     except PermissionError:
-        print(f"Không có quyền ghi file '{ten_file}'.")
+        print(f"Không có quyền truy cập file '{ten_file}'.")
     except Exception as e:
-        print(f"Lỗi khi lưu danh sách học sinh: {e}")
+        print(f"Lỗi khi đọc dữ liệu học sinh: {e}")
+    return danh_sach_hs
 
 def luu_danh_sach_lop_hoc(danh_sach_lop, ten_file="lop_hoc.txt"):
     """Lưu danh sách lớp học vào file."""
@@ -69,23 +82,6 @@ def luu_danh_sach_lop_hoc(danh_sach_lop, ten_file="lop_hoc.txt"):
         print(f"Không có quyền ghi file '{ten_file}'.")
     except Exception as e:
         print(f"Lỗi khi lưu danh sách lớp học: {e}")
-
-def luu_diem_danh(ma_lop, diem_danh):
-    """Lưu điểm danh của lớp vào file JSON theo tháng."""
-    now = datetime.datetime.now()
-    thang = now.month
-    nam = now.year
-    ten_file = f"diem_danh_{ma_lop}_{thang}_{nam}.json"
-    duong_dan_file = lay_duong_dan_file(ten_file)
-
-    try:
-        with open(duong_dan_file, "w", encoding='utf-8') as f:
-            json.dump(diem_danh, f, ensure_ascii=False, indent=4)
-        print(f"Đã lưu điểm danh vào file: {duong_dan_file}")
-    except PermissionError:
-        print(f"Không có quyền ghi file '{ten_file}'.")
-    except Exception as e:
-        print(f"Lỗi khi lưu điểm danh: {e}")
 
 def luu_thoi_khoa_bieu(ma_lop, thoi_khoa_bieu, ten_file=None):
     if ten_file is None:
@@ -118,6 +114,32 @@ def doc_thoi_khoa_bieu(ma_lop, ten_file=None):
         print(f"Lỗi khi đọc thời khóa biểu: {e}")
         return {}
     
+def luu_diem_danh(ma_lop, diem_danh, ngay):
+    """Lưu điểm danh của lớp vào file JSON theo ngày."""
+    now = datetime.datetime.now()
+    thang = now.month
+    nam = now.year
+    ten_file = f"diem_danh_{ma_lop}_{thang}_{nam}.json"
+    duong_dan_file = lay_duong_dan_file(ten_file)
+
+    try:
+        # Đọc dữ liệu hiện có (nếu có)
+        if os.path.exists(duong_dan_file):
+            with open(duong_dan_file, "r", encoding='utf-8') as f:
+                data = json.load(f)
+        else:
+            data = {}
+        
+        # Cập nhật dữ liệu cho ngày hiện tại
+        data[str(ngay)] = diem_danh
+
+        # Lưu dữ liệu đã cập nhật
+        with open(duong_dan_file, "w", encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+        print(f"Đã lưu điểm danh vào file: {duong_dan_file}")
+    except Exception as e:
+        print(f"Lỗi khi lưu điểm danh: {e}")
+
 def doc_diem_danh(ma_lop, thang, nam):
     ten_file = f"diem_danh_{ma_lop}_{thang}_{nam}.json"
     duong_dan_file = lay_duong_dan_file(ten_file)
@@ -133,3 +155,15 @@ def doc_diem_danh(ma_lop, thang, nam):
     except Exception as e:
         print(f"Lỗi khi đọc dữ liệu điểm danh: {e}")
         return {}
+def luu_danh_sach_hoc_sinh(danh_sach_hs, ten_file="hoc_sinh.txt"):
+    """Lưu danh sách học sinh vào file."""
+    duong_dan_file = lay_duong_dan_file(ten_file)
+    try:
+        with open(duong_dan_file, "w", encoding='utf-8') as f:
+            for ma_hs, hoc_sinh in danh_sach_hs.items():
+                f.write(f"{hoc_sinh.ma_hs}|{hoc_sinh.ten_hs}|{hoc_sinh.ma_lop}|{hoc_sinh.so_buoi_hoc}|{hoc_sinh.sdt}\n")
+        print(f"Đã lưu danh sách học sinh vào file '{ten_file}'.")
+    except PermissionError:
+        print(f"Không có quyền ghi file '{ten_file}'.")
+    except Exception as e:
+        print(f"Lỗi khi lưu danh sách học sinh: {e}")

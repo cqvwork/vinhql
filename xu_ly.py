@@ -4,89 +4,97 @@ from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 import calendar
 import datetime
+from file_manager import doc_diem_danh
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill
 def clean_filename(filename):
     """Remove invalid characters from filename"""
     return "".join(c for c in filename if c.isalnum() or c in (' ', '_', '-'))
 
-def xuat_diem_danh_excel(ma_lop, ten_lop, danh_sach_diem_danh, thang, nam):
-    """Xuất điểm danh của lớp trong tháng sang file Excel."""
-
-    wb = openpyxl.Workbook()
+def xuat_diem_danh_excel(ma_lop, ten_lop, danh_sach_hs, thang, nam):
+    wb = Workbook()
     sheet = wb.active
     sheet.title = f"Diem Danh {clean_filename(ten_lop)} - Thang {thang}-{nam}"
 
-    # Định dạng cho header
-    header_font = Font(bold=True)
-    header_alignment = Alignment(horizontal='center', vertical='center')
-    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-
-    # Thêm tiêu đề
+    # Định dạng chung
+    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    center_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    
+    # Định dạng tiêu đề
     sheet.merge_cells('A1:D1')
     title_cell = sheet['A1']
     title_cell.value = f"PHIẾU ĐIỂM DANH LỚP {ten_lop.upper()} - THÁNG {thang}/{nam}"
-    title_cell.font = Font(bold=True, size=14)
-    title_cell.alignment = Alignment(horizontal='center', vertical='center')
+    title_cell.font = Font(bold=True, size=16)
+    title_cell.alignment = center_alignment
+    title_cell.fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
-    # Ghi header
+    # Định dạng header
+    header_font = Font(bold=True, size=12)
+    header_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+
     headers = ["STT", "Họ và tên"]
-    for i, header in enumerate(headers, start=1):
-        cell = sheet.cell(row=3, column=i, value=header)
+    for col, header in enumerate(headers, start=1):
+        cell = sheet.cell(row=3, column=col, value=header)
         cell.font = header_font
-        cell.alignment = header_alignment
-        cell.border = border
+        cell.alignment = center_alignment
+        cell.border = thin_border
+        cell.fill = header_fill
 
-    # Tìm số ngày trong tháng
+    # Tìm số ngày trong tháng và thêm vào header
     _, days_in_month = calendar.monthrange(nam, thang)
-
-    # Ghi các ngày trong tháng vào header
     for day in range(1, days_in_month + 1):
-        cell = sheet.cell(row=3, column=day + 2, value=day)
+        col = day + 2
+        cell = sheet.cell(row=3, column=col, value=day)
         cell.font = header_font
-        cell.alignment = header_alignment
-        cell.border = border
+        cell.alignment = center_alignment
+        cell.border = thin_border
+        cell.fill = header_fill
 
-    # Ghi cột tổng số buổi đi học
-    total_column = days_in_month + 3
-    cell = sheet.cell(row=3, column=total_column, value="Tổng số buổi đi học")
+    # Cột tổng số buổi đi học
+    total_col = days_in_month + 3
+    cell = sheet.cell(row=3, column=total_col, value="Tổng số buổi đi học")
     cell.font = header_font
-    cell.alignment = header_alignment
-    cell.border = border
+    cell.alignment = center_alignment
+    cell.border = thin_border
+    cell.fill = header_fill
 
-    if not danh_sach_diem_danh:
-        print("Danh sách điểm danh trống.")
-        return
+    # Đọc dữ liệu điểm danh
+    diem_danh_data = doc_diem_danh(ma_lop, thang, nam)
 
-    row = 4
-    for hoc_sinh in danh_sach_diem_danh:
-        if not isinstance(hoc_sinh, HocSinh):
-            print(f"Bỏ qua dữ liệu không hợp lệ: {hoc_sinh}")
-            continue
-        
-        sheet.cell(row=row, column=1, value=row - 3).border = border
-        sheet.cell(row=row, column=2, value=hoc_sinh.ten_hs).border = border
+    # Ghi dữ liệu học sinh và điểm danh
+    for row, hoc_sinh in enumerate(danh_sach_hs, start=4):
+        sheet.cell(row=row, column=1, value=row-3).border = thin_border
+        sheet.cell(row=row, column=2, value=hoc_sinh.ten_hs).border = thin_border
 
         total_days_present = 0
         for day in range(1, days_in_month + 1):
             cell = sheet.cell(row=row, column=day + 2)
-            diem_danh_ngay = hoc_sinh.diem_danh.get(str(day), "")
-            if isinstance(diem_danh_ngay, str) and diem_danh_ngay.lower() == "có mặt":
+            ngay = f"{nam}-{thang:02d}-{day:02d}"
+            diem_danh_ngay = diem_danh_data.get(ngay, {}).get(hoc_sinh.ma_hs, "")
+            if diem_danh_ngay == "Có mặt":
                 cell.value = "X"
+                cell.font = Font(color="00008B")  # Dark Blue
                 total_days_present += 1
-            cell.alignment = Alignment(horizontal='center')
-            cell.border = border
+            cell.alignment = center_alignment
+            cell.border = thin_border
 
         # Ghi tổng số buổi đi học
-        sheet.cell(row=row, column=total_column, value=total_days_present).border = border
-
-        row += 1
+        total_cell = sheet.cell(row=row, column=total_col, value=total_days_present)
+        total_cell.border = thin_border
+        total_cell.alignment = center_alignment
 
     # Tự động điều chỉnh độ rộng cột
-    for column_cells in sheet.columns:
-        length = max(len(str(cell.value)) for cell in column_cells if not isinstance(cell, openpyxl.cell.MergedCell))
-        if length > 0:
-            column_letter = openpyxl.utils.get_column_letter(column_cells[0].column)
-            adjusted_width = (length + 2)
-            sheet.column_dimensions[column_letter].width = adjusted_width
+    for column in range(1, sheet.max_column + 1):
+        max_length = 0
+        column_letter = get_column_letter(column)
+        for cell in sheet[column_letter]:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        sheet.column_dimensions[column_letter].width = adjusted_width
 
     # Lưu file Excel
     ten_file = f"diem_danh_{clean_filename(ten_lop)}_{thang}_{nam}.xlsx"

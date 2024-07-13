@@ -6,10 +6,6 @@ class HocSinh:
         self.so_buoi_hoc = so_buoi_hoc
         self.sdt = sdt
         self.diem_danh = {}
-
-    def __str__(self):
-        return f"Học sinh: {self.ten_hs} (Mã: {self.ma_hs}, Lớp: {self.ma_lop})"
-
 class LopHoc:
     def __init__(self, ma_lop, ten_lop):
         self.ma_lop = ma_lop
